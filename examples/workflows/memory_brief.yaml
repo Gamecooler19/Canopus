@@ -1,0 +1,45 @@
+name: memory_brief
+description: Search recent memories and produce a brief daily summary.
+tags:
+  - memory
+  - summarisation
+  - daily-brief
+
+inputs:
+  - name: query
+    description: Topic or keyword to search memory for. Leave empty for recent items.
+    required: false
+    default: ""
+  - name: context
+    description: Optional extra context for the summary prompt (e.g. "today's meeting").
+    required: false
+    default: ""
+
+steps:
+  - id: search
+    kind: memory_search
+    description: Retrieve the most relevant memory records.
+    query: "{{ inputs.query }}"
+    on_failure: continue
+
+  - id: summarise
+    kind: model
+    description: Summarise the retrieved memories into a concise brief.
+    prompt: |
+      You are a helpful personal assistant generating a brief summary.
+
+      {{ inputs.context }}
+
+      Here is what I remember that is relevant:
+
+      {{ steps.search.block }}
+
+      Write a concise, clear daily brief based on the above memories.
+      Use bullet points where appropriate. Keep it under 200 words.
+      If there are no memories, say so briefly.
+    on_failure: abort
+
+  - id: result
+    kind: output
+    description: The final memory brief.
+    value: "{{ steps.summarise.text }}"

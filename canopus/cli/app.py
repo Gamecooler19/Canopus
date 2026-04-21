@@ -19,6 +19,7 @@ from canopus.cli.commands.profile import profile_app
 from canopus.cli.commands.run_cmd import run_prompt
 from canopus.cli.commands.trace import trace_app
 from canopus.cli.commands.version_cmd import version
+from canopus.cli.commands.workflow import workflow_app
 
 # Register all native capabilities at import time so that CLI commands,
 # the reasoning pipeline, and tests all see the same populated registry.
@@ -45,6 +46,7 @@ app.add_typer(trace_app, name="trace")
 app.add_typer(plugin_app, name="plugin")
 app.add_typer(mcp_app, name="mcp")
 app.add_typer(memory_app, name="memory")
+app.add_typer(workflow_app, name="workflow")
 
 # -----------------------------------------------------------------------
 # Top-level commands
@@ -114,9 +116,26 @@ def _bootstrap_memory() -> None:
         pass
 
 
+def _bootstrap_workflows() -> None:
+    """Ensure the workflows directory exists on first run.
+
+    This is lightweight — it just creates the directory if it does not
+    already exist so that ``canopus workflow list`` always has a valid
+    path to inspect. Actual workflow loading happens lazily in each command.
+    """
+    from canopus.core.config import load_config
+
+    try:
+        config = load_config()
+        config.paths.ensure_all()
+    except Exception:
+        pass
+
+
 def main() -> None:
     """Entry point for the ``canopus`` console script."""
     _bootstrap_plugins()
     _bootstrap_mcp()
     _bootstrap_memory()
+    _bootstrap_workflows()
     app()

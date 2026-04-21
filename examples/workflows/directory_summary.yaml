@@ -1,0 +1,45 @@
+name: directory_summary
+description: List a directory and summarise its contents using an AI model.
+tags:
+  - filesystem
+  - summarisation
+
+inputs:
+  - name: path
+    description: Absolute path to the directory to summarise.
+    required: true
+  - name: max_entries
+    description: Maximum number of directory entries to include.
+    required: false
+    default: "50"
+
+steps:
+  - id: list_dir
+    kind: capability
+    description: List files and subdirectories in the target path.
+    capability: filesystem.list_dir
+    inputs:
+      path: "{{ inputs.path }}"
+    on_failure: abort
+
+  - id: summarise
+    kind: model
+    description: Ask the model to produce a concise summary of the listing.
+    prompt: |
+      You are a helpful assistant.
+
+      A user wants a brief summary of a directory listing.
+
+      Directory: {{ inputs.path }}
+
+      Contents:
+      {{ steps.list_dir.text }}
+
+      Write a short, clear paragraph summarising what the directory contains.
+      Highlight any important file types, naming patterns, or notable subdirectories.
+    on_failure: abort
+
+  - id: result
+    kind: output
+    description: Final output shown to the user.
+    value: "{{ steps.summarise.text }}"
