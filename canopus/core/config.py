@@ -114,6 +114,34 @@ class TracingSettings(BaseModel):
     max_trace_files: int = 1000
 
 
+class McpServerConfig(BaseModel):
+    """Configuration for a single MCP server.
+
+    MCP servers expose tools that are normalized into Canopus capabilities.
+    Each server is loaded independently — a failing server does not prevent
+    others from loading.
+
+    Attributes:
+        name: Unique identifier used to namespace the server's tools, e.g.
+            ``"mock"`` → tools become ``"mock.echo"``, ``"mock.word_count"``.
+        enabled: When ``False`` the server is skipped at startup.
+        transport: Transport type. Currently ``"mock"`` (in-process) or
+            ``"stdio"`` (future external process).
+        command: Executable path for ``stdio`` transport. Not used by ``mock``.
+        args: Additional CLI arguments forwarded to the server process.
+        env: Extra environment variables for the server process.
+        description: Human-readable summary shown in ``canopus mcp list``.
+    """
+
+    name: str
+    enabled: bool = True
+    transport: str = "mock"
+    command: str | None = None
+    args: list[str] = Field(default_factory=list)
+    env: dict[str, str] = Field(default_factory=dict)
+    description: str = ""
+
+
 class AppConfig(BaseModel):
     """Root application configuration.
 
@@ -124,6 +152,7 @@ class AppConfig(BaseModel):
 
     active_profile: str = "local-private"
     tracing: TracingSettings = Field(default_factory=TracingSettings)
+    mcp_servers: list[McpServerConfig] = Field(default_factory=list)
     paths: AppPaths = Field(default_factory=AppPaths)
 
 

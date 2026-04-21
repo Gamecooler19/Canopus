@@ -12,6 +12,7 @@ from canopus.capabilities.native.register import register_all as _register_nativ
 from canopus.cli.commands.capability import capability_app
 from canopus.cli.commands.chat import chat
 from canopus.cli.commands.doctor import doctor
+from canopus.cli.commands.mcp import mcp_app
 from canopus.cli.commands.plugin import plugin_app
 from canopus.cli.commands.profile import profile_app
 from canopus.cli.commands.run_cmd import run_prompt
@@ -41,6 +42,7 @@ app.add_typer(profile_app, name="profile")
 app.add_typer(capability_app, name="capability")
 app.add_typer(trace_app, name="trace")
 app.add_typer(plugin_app, name="plugin")
+app.add_typer(mcp_app, name="mcp")
 
 # -----------------------------------------------------------------------
 # Top-level commands
@@ -71,7 +73,28 @@ def _bootstrap_plugins() -> None:
         pass
 
 
+def _bootstrap_mcp() -> None:
+    """Initialize configured MCP servers and register their tools.
+
+    Called once at startup after native capabilities and legacy plugins.
+    A failure here must never crash the CLI — errors are recorded in the
+    MCP manager and surfaced via ``canopus mcp doctor``.
+    """
+    from canopus.capabilities.registry import registry
+    from canopus.core.config import load_config
+    from canopus.plugins.mcp.manager import initialize as initialize_mcp
+
+    try:
+        config = load_config()
+        initialize_mcp(server_configs=config.mcp_servers, registry=registry)
+    except Exception:
+        # Don't crash the CLI if MCP bootstrap fails.
+        # Failures are inspectable via `canopus mcp doctor`.
+        pass
+
+
 def main() -> None:
     """Entry point for the ``canopus`` console script."""
     _bootstrap_plugins()
+    _bootstrap_mcp()
     app()

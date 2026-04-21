@@ -78,6 +78,10 @@ class PluginError(CanopusError):
     """Raised when a plugin cannot be discovered, loaded, or executed."""
 
 
+class McpError(CanopusError):
+    """Raised when an MCP server or tool operation fails."""
+
+
 # ---------------------------------------------------------------------------
 # Policy and safety
 # ---------------------------------------------------------------------------
