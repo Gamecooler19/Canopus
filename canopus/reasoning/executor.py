@@ -64,6 +64,7 @@ class Executor:
         original_request: str,
         *,
         writer: TraceWriter | None = None,
+        memory_block: str = "",
     ) -> ExecutionResult:
         """Execute *plan* via a capability or a model provider.
 
@@ -74,6 +75,9 @@ class Executor:
             plan: The planner-produced execution plan.
             original_request: The verbatim user input.
             writer: Optional trace writer forwarded to capability context.
+            memory_block: Pre-formatted memory context string from
+                :meth:`~canopus.memory.models.MemoryContext.as_prompt_block`.
+                Injected into the model prompt when the model path is taken.
 
         Returns:
             An :class:`~canopus.reasoning.types.ExecutionResult`.
@@ -89,7 +93,7 @@ class Executor:
                 )
 
         # ── Model provider path ───────────────────────────────────────────
-        return self._execute_model(plan, original_request)
+        return self._execute_model(plan, original_request, memory_block=memory_block)
 
     # ------------------------------------------------------------------
     # Internal execution paths
@@ -125,9 +129,13 @@ class Executor:
             capability_name=capability_name,
         )
 
-    def _execute_model(self, plan: Plan, original_request: str) -> ExecutionResult:
+    def _execute_model(
+        self, plan: Plan, original_request: str, *, memory_block: str = ""
+    ) -> ExecutionResult:
         """Invoke the model provider and wrap the response."""
-        system_prompt, user_prompt = build_prompt(plan, original_request)
+        system_prompt, user_prompt = build_prompt(
+            plan, original_request, memory_block=memory_block
+        )
 
         model_request = ModelRequest(
             prompt=user_prompt,

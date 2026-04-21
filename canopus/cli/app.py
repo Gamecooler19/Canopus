@@ -13,6 +13,7 @@ from canopus.cli.commands.capability import capability_app
 from canopus.cli.commands.chat import chat
 from canopus.cli.commands.doctor import doctor
 from canopus.cli.commands.mcp import mcp_app
+from canopus.cli.commands.memory import memory_app
 from canopus.cli.commands.plugin import plugin_app
 from canopus.cli.commands.profile import profile_app
 from canopus.cli.commands.run_cmd import run_prompt
@@ -43,6 +44,7 @@ app.add_typer(capability_app, name="capability")
 app.add_typer(trace_app, name="trace")
 app.add_typer(plugin_app, name="plugin")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(memory_app, name="memory")
 
 # -----------------------------------------------------------------------
 # Top-level commands
@@ -93,8 +95,28 @@ def _bootstrap_mcp() -> None:
         pass
 
 
+def _bootstrap_memory() -> None:
+    """Initialize the memory service and open the local database.
+
+    Called once at startup after all capability sources are loaded.
+    A failure here must never crash the CLI — the memory service will
+    simply remain uninitialised (``get_service()`` returns ``None``).
+    """
+    from canopus.core.config import load_config
+    from canopus.memory.service import initialize as initialize_memory
+
+    try:
+        config = load_config()
+        db_path = config.paths.memory_dir / "memory.db"
+        initialize_memory(db_path)
+    except Exception:
+        # Don't crash the CLI if memory bootstrap fails.
+        pass
+
+
 def main() -> None:
     """Entry point for the ``canopus`` console script."""
     _bootstrap_plugins()
     _bootstrap_mcp()
+    _bootstrap_memory()
     app()

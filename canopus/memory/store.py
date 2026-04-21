@@ -26,7 +26,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from canopus.core.errors import MemoryNotFoundError, MemoryStoreError
+from canopus.core.errors import MemoryNotFoundError
 from canopus.memory.models import MemoryKind, MemoryRecord
 from canopus.storage.sqlite import SqliteStore
 
@@ -70,11 +70,13 @@ _MIGRATIONS: list[tuple[int, str]] = [
         END;
 
         CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-            INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+            INSERT INTO memories_fts(memories_fts, rowid, content)
+              VALUES('delete', old.rowid, old.content);
         END;
 
         CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-            INSERT INTO memories_fts(memories_fts, rowid, content) VALUES('delete', old.rowid, old.content);
+            INSERT INTO memories_fts(memories_fts, rowid, content)
+              VALUES('delete', old.rowid, old.content);
             INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
         END;
         """,
@@ -118,7 +120,7 @@ class MemoryStore:
         self._store.close()
         self._open = False
 
-    def __enter__(self) -> "MemoryStore":
+    def __enter__(self) -> MemoryStore:
         self.open()
         return self
 
@@ -272,7 +274,8 @@ class MemoryStore:
         Raises:
             :class:`~canopus.core.errors.MemoryStoreError`: On I/O or FTS failure.
         """
-        conditions: list[str] = ["m.rowid IN (SELECT rowid FROM memories_fts WHERE content MATCH ?)"]
+        match_clause = "m.rowid IN (SELECT rowid FROM memories_fts WHERE content MATCH ?)"
+        conditions: list[str] = [match_clause]
         params: list[Any] = [query]
 
         if kind is not None:

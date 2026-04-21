@@ -9,6 +9,8 @@ from rich.rule import Rule
 
 from canopus.core.runtime import RequestMode, create_session
 from canopus.core.tracing import TraceWriter
+from canopus.memory.models import MemoryContext
+from canopus.memory.service import get_service
 from canopus.reasoning.pipeline import run_pipeline
 from canopus.reasoning.types import ReflectionOutcome
 
@@ -43,13 +45,24 @@ def run_prompt(
     console.print(f"\n[bold]Request:[/bold] {prompt}\n")
 
     # ----------------------------------------------------------------
+    # Memory context
+    # ----------------------------------------------------------------
+    memory_svc = get_service()
+    mem_ctx: MemoryContext | None = None
+    if memory_svc is not None:
+        try:
+            mem_ctx = memory_svc.build_context(prompt)
+        except Exception:
+            pass  # memory failure must not interrupt execution
+
+    # ----------------------------------------------------------------
     # Reasoning pipeline
     # ----------------------------------------------------------------
     error_msg: str | None = None
     result_summary: str
 
     try:
-        reflection = run_pipeline(prompt, session.profile, writer=writer)
+        reflection = run_pipeline(prompt, session.profile, writer=writer, memory_context=mem_ctx)
 
         intent_label = reflection.execution.plan.intent.value
         confidence = reflection.execution.plan.intent_confidence
@@ -76,6 +89,18 @@ def run_prompt(
         console.print(Rule(style="dim"))
 
         result_summary = f"outcome={reflection.outcome} intent={intent_label}"
+
+        # Store the exchange in memory (best-effort; never crashes run)
+        if memory_svc is not None and reflection.outcome == ReflectionOutcome.VALID:
+            try:
+                memory_svc.remember_exchange(
+                    user_input=prompt,
+                    assistant_response=reflection.final_response,
+                    run_id=session.run_id,
+                    session_id=session.session_id,
+                )
+            except Exception:
+                pass
 
     except Exception as exc:
         error_msg = str(exc)

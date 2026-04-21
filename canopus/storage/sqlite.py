@@ -80,7 +80,7 @@ class SqliteStore:
             finally:
                 self._conn = None
 
-    def __enter__(self) -> "SqliteStore":
+    def __enter__(self) -> SqliteStore:
         self.open()
         return self
 

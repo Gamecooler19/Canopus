@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from canopus.core.profiles import ProfileSettings
 from canopus.core.tracing import TraceWriter
+from canopus.memory.models import MemoryContext
 from canopus.models.base import ModelProvider
 from canopus.models.router import ModelRouter
 from canopus.reasoning.executor import Executor
@@ -34,6 +35,7 @@ def run_pipeline(
     *,
     writer: TraceWriter | None = None,
     provider: ModelProvider | None = None,
+    memory_context: MemoryContext | None = None,
 ) -> ReflectionResult:
     """Run the full planner → executor → reflector pipeline for *request*.
 
@@ -45,6 +47,9 @@ def run_pipeline(
             structured reasoning-stage events.
         provider: Override the provider selected by the router. Primarily
             useful in tests.
+        memory_context: Optional pre-assembled memory context from the memory
+            subsystem. When supplied, the rendered prompt block is injected
+            into the user prompt before the model call.
 
     Returns:
         A :class:`~canopus.reasoning.types.ReflectionResult` containing the
@@ -86,10 +91,25 @@ def run_pipeline(
         )
 
     # ----------------------------------------------------------------
+    # Memory context injection
+    # ----------------------------------------------------------------
+    memory_block = ""
+    if memory_context is not None:
+        memory_block = memory_context.as_prompt_block()
+        if writer and memory_block:
+            writer.trace.add_event(
+                "memory.context_injected",
+                {
+                    "records": memory_context.total_found,
+                    "truncated": memory_context.truncated,
+                },
+            )
+
+    # ----------------------------------------------------------------
     # Execution
     # ----------------------------------------------------------------
     executor = Executor(resolved_provider)
-    execution = executor.execute(plan, request, writer=writer)
+    execution = executor.execute(plan, request, writer=writer, memory_block=memory_block)
 
     if writer:
         event_data: dict[str, object] = {

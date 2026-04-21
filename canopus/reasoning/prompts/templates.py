@@ -61,7 +61,12 @@ def get_system_prompt(intent: IntentCategory) -> str:
     return _SYSTEM_PROMPTS.get(intent, _DEFAULT_SYSTEM)
 
 
-def build_prompt(plan: Plan, original_request: str) -> tuple[str, str]:
+def build_prompt(
+    plan: Plan,
+    original_request: str,
+    *,
+    memory_block: str = "",
+) -> tuple[str, str]:
     """Build a (system_prompt, user_prompt) pair for the model request.
 
     The user prompt embeds the original request alongside the plan's steps so
@@ -71,6 +76,9 @@ def build_prompt(plan: Plan, original_request: str) -> tuple[str, str]:
     Args:
         plan: The :class:`~canopus.reasoning.types.Plan` produced by the planner.
         original_request: The verbatim user input string.
+        memory_block: Optional pre-formatted memory context block to prepend
+            to the user prompt. Produced by
+            :meth:`~canopus.memory.models.MemoryContext.as_prompt_block`.
 
     Returns:
         A ``(system_prompt, user_prompt)`` tuple, both plain strings.
@@ -80,7 +88,10 @@ def build_prompt(plan: Plan, original_request: str) -> tuple[str, str]:
     step_lines = "\n".join(
         f"  {step.index + 1}. {step.description}" for step in plan.steps
     )
+
+    memory_section = f"{memory_block}\n\n" if memory_block else ""
     user_prompt = (
+        f"{memory_section}"
         f"Request: {original_request}\n\n"
         f"Planned approach:\n{step_lines}\n\n"
         "Please respond to the request."
