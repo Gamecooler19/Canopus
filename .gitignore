@@ -1,15 +1,124 @@
+# =============================================================================
+# Canopus — .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python bytecode and build artifacts
+# -----------------------------------------------------------------------------
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.pyd
-*.swp
-.DS_Store
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+sdist/
+wheels/
+
+# -----------------------------------------------------------------------------
+# Virtual environments and local tooling
+# -----------------------------------------------------------------------------
+.venv/
 venv/
 env/
-.idea/
-*.log
-*.bak
-*.tmp
-.ruff_cache/
+.env/
+ENV/
+.conda/
+# uv lock caches / local resolves
+.uv/
+
+# -----------------------------------------------------------------------------
+# Type checking / linting / formatting caches
+# -----------------------------------------------------------------------------
 .mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# -----------------------------------------------------------------------------
+# Test and coverage artifacts
+# -----------------------------------------------------------------------------
 .pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+coverage/
+htmlcov/
+junit.xml
+.tox/
+.nox/
+
+# -----------------------------------------------------------------------------
+# Package distribution / publishing
+# -----------------------------------------------------------------------------
+MANIFEST
+*.whl
+
+# -----------------------------------------------------------------------------
+# OS and editor noise
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Desktop.ini
+.Spotlight-V100
+.Trashes
+.vscode/settings.json
+.idea/
+
+# -----------------------------------------------------------------------------
+# Secrets and local config overrides
+# Must never be committed — use ~/.canopus/config/secrets.toml at runtime.
+# -----------------------------------------------------------------------------
+secrets.toml
+*.secret
+.env
+.env.*
+!.env.example
+
+# -----------------------------------------------------------------------------
+# Canopus runtime data
+# These directories may appear in-repo if CANOPUS_HOME is set to the project
+# root during local development. They contain ephemeral data only.
+# -----------------------------------------------------------------------------
+
+# Memory store (SQLite DB, embeddings, FTS indexes)
+runtime/memory/
+local/memory/
+
+# Execution traces
+runtime/traces/
+local/traces/
+
+# Runtime logs
+runtime/logs/
+local/logs/
+
+# Plugin caches and sandboxes
+runtime/cache/
+local/cache/
+
+# Temporary workflow artifacts
+runtime/workflows/
+local/workflows/
+
+# Scratch / temp data from runs
+*.canopus-tmp
+*.trace.json.gz
+
+# -----------------------------------------------------------------------------
+# Docs build artifacts (if a static site generator is ever added)
+# -----------------------------------------------------------------------------
+site/
+_build/
+.docutils_cache/
+
+# -----------------------------------------------------------------------------
+# Jupyter (if used for exploratory work or prototyping)
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+

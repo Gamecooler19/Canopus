@@ -104,6 +104,27 @@ class PermissionDeniedError(PolicyError):
 
 
 # ---------------------------------------------------------------------------
+# Memory
+# ---------------------------------------------------------------------------
+
+
+class MemoryError(CanopusError):
+    """Raised when the memory subsystem fails to read, write, or query records."""
+
+
+class MemoryStoreError(MemoryError):
+    """Raised when the memory store cannot initialize or perform I/O."""
+
+
+class MemoryNotFoundError(MemoryError):
+    """Raised when a memory record with the given ID does not exist."""
+
+    def __init__(self, memory_id: str) -> None:
+        self.memory_id = memory_id
+        super().__init__(f"Memory record not found: {memory_id!r}")
+
+
+# ---------------------------------------------------------------------------
 # Workflows
 # ---------------------------------------------------------------------------
 
