@@ -108,6 +108,15 @@ class CapabilityRegistry:
         """Return ``True`` if *name* is registered."""
         return name in self._specs
 
+    def unregister(self, name: str) -> None:
+        """Remove a capability from the registry.
+
+        No-op if the capability is not registered. Intended for test isolation
+        and plugin teardown — production code should rarely need this.
+        """
+        self._specs.pop(name, None)
+        self._handlers.pop(name, None)
+
     def __len__(self) -> int:
         return len(self._specs)
 
