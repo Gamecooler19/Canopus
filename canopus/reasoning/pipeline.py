@@ -89,19 +89,19 @@ def run_pipeline(
     # Execution
     # ----------------------------------------------------------------
     executor = Executor(resolved_provider)
-    execution = executor.execute(plan, request)
+    execution = executor.execute(plan, request, writer=writer)
 
     if writer:
-        writer.trace.add_event(
-            "execution.completed",
-            {
-                "provider": execution.provider_name,
-                "model": execution.model_name,
-                "latency_ms": execution.latency_ms,
-                "prompt_tokens": execution.prompt_tokens,
-                "completion_tokens": execution.completion_tokens,
-            },
-        )
+        event_data: dict[str, object] = {
+            "provider": execution.provider_name,
+            "model": execution.model_name,
+            "latency_ms": execution.latency_ms,
+            "prompt_tokens": execution.prompt_tokens,
+            "completion_tokens": execution.completion_tokens,
+        }
+        if execution.capability_name:
+            event_data["capability"] = execution.capability_name
+        writer.trace.add_event("execution.completed", event_data)
 
     # ----------------------------------------------------------------
     # Reflection

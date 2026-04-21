@@ -4,6 +4,10 @@ The :class:`Planner` is responsible for understanding *what* the user wants
 before any model token is consumed. It uses deterministic keyword heuristics
 for classification — lightweight, fast, and fully testable without an LLM.
 
+**Capability routing** is performed first: if the request matches a known
+capability pattern the planner emits a plan step with ``capability_name`` set
+so the executor bypasses the model provider entirely.
+
 When a real local classifier model becomes available (Phase 4+), this module
 is the natural extension point: replace :meth:`Planner._classify` with an
 embedding-based or zero-shot classifier while keeping the public interface
@@ -13,6 +17,7 @@ identical.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from canopus.reasoning.types import IntentCategory, Plan, PlanStep
 
@@ -43,6 +48,64 @@ _INFORMATIONAL_KEYWORDS: frozenset[str] = frozenset(
 # Requests this short with no other signal are almost always conversational
 _CONVERSATIONAL_WORD_THRESHOLD = 5
 
+# ---------------------------------------------------------------------------
+# Capability routing patterns
+#
+# Each entry is (compiled_pattern, capability_name, input_extractor).
+# The input extractor receives the re.Match object and returns the inputs dict
+# to pass to the capability handler.
+# Patterns are evaluated in order — first match wins.
+# ---------------------------------------------------------------------------
+
+def _no_inputs(_m: re.Match[str]) -> dict[str, str]:
+    return {}
+
+
+def _path_from_group1(m: re.Match[str]) -> dict[str, str]:
+    return {"path": m.group(1).strip()}
+
+
+_CapExtractor = Callable[[re.Match[str]], dict[str, str]]
+
+_CAPABILITY_PATTERNS: list[
+    tuple[re.Pattern[str], str, _CapExtractor]
+] = [
+    # ── system.now ──────────────────────────────────────────────────────────
+    (
+        re.compile(
+            r"\b(what(?:'s| is)(?: the)? (?:current )?(?:time|date|day)|"
+            r"current (?:time|date|day)|"
+            r"what time is it|"
+            r"what day is (?:it|today)|"
+            r"what(?:'s| is) today(?:'s date)?)\b",
+            re.IGNORECASE,
+        ),
+        "system.now",
+        _no_inputs,
+    ),
+    # ── filesystem.read_text ────────────────────────────────────────────────
+    (
+        re.compile(
+            r"\b(?:read|open|show|cat|print|display)(?: (?:the )?(?:file|contents? of|text of))?"
+            r"\s+([^\s].+?)\s*$",
+            re.IGNORECASE,
+        ),
+        "filesystem.read_text",
+        _path_from_group1,
+    ),
+    # ── filesystem.list_dir ─────────────────────────────────────────────────
+    (
+        re.compile(
+            r"\b(?:list|ls|dir|show)(?: (?:the )?(?:files?(?: in)?|directory(?: contents? of)?|"
+            r"contents? of|folder(?: contents? of)?))?"
+            r"\s+([^\s].+?)\s*$",
+            re.IGNORECASE,
+        ),
+        "filesystem.list_dir",
+        _path_from_group1,
+    ),
+]
+
 
 class Planner:
     """Classifies user requests and produces structured execution plans.
@@ -60,6 +123,11 @@ class Planner:
     def plan(self, request: str) -> Plan:
         """Classify *request* and return a structured :class:`~canopus.reasoning.types.Plan`.
 
+        Capability routing is attempted first. If a capability matches, the
+        returned plan has a single step with ``capability_name`` set and
+        ``requires_capabilities=True``. Otherwise the generic intent classifier
+        runs and produces a model-execution plan.
+
         Args:
             request: Raw user input string.
 
@@ -67,6 +135,17 @@ class Planner:
             A :class:`~canopus.reasoning.types.Plan` with intent, confidence,
             steps, and metadata.
         """
+        cap_step = self._match_capability(request)
+        if cap_step is not None:
+            return Plan(
+                intent=IntentCategory.ACTION_ORIENTED,
+                intent_confidence=0.95,
+                summary=f"Capability dispatch: {cap_step.capability_name!r}",
+                steps=[cap_step],
+                requires_capabilities=True,
+                system_prompt_key="action_oriented",
+            )
+
         intent, confidence = self._classify(request)
         steps = self._build_steps(intent)
 
@@ -80,7 +159,29 @@ class Planner:
         )
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Capability routing
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _match_capability(request: str) -> PlanStep | None:
+        """Return a PlanStep with capability routing if *request* matches.
+
+        Returns ``None`` when no capability pattern matches.
+        """
+        for pattern, cap_name, extractor in _CAPABILITY_PATTERNS:
+            m = pattern.search(request)
+            if m:
+                inputs = extractor(m)
+                return PlanStep(
+                    index=0,
+                    description=f"Execute capability {cap_name!r}",
+                    capability_name=cap_name,
+                    capability_inputs=inputs,
+                )
+        return None
+
+    # ------------------------------------------------------------------
+    # Generic intent classification
     # ------------------------------------------------------------------
 
     @staticmethod

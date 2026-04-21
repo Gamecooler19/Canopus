@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.DS_Store
+venv/
+env/
+.idea/
+*.log
+*.bak
+*.tmp
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

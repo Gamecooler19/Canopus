@@ -8,6 +8,7 @@ avoids circular imports and makes the pipeline easy to reason about.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -37,10 +38,21 @@ class IntentCategory(StrEnum):
 
 
 class PlanStep(BaseModel):
-    """A single step within an execution plan."""
+    """A single step within an execution plan.
+
+    Attributes:
+        index: Zero-based position in the plan step list.
+        description: Human-readable description of what this step does.
+        capability_name: When set, the executor should invoke this registered
+            capability instead of calling the model provider. The string must
+            match a key in the capability registry.
+        capability_inputs: Optional inputs to forward to the capability handler.
+    """
 
     index: int
     description: str
+    capability_name: str | None = None
+    capability_inputs: dict[str, Any] = Field(default_factory=dict)
 
 
 class Plan(BaseModel):
@@ -75,12 +87,16 @@ class ExecutionResult(BaseModel):
 
     Attributes:
         plan: The plan that was executed.
-        raw_response: Verbatim text returned by the model provider.
+        raw_response: Verbatim text returned by the model provider, or a
+            formatted string representation of a capability's output.
         provider_name: Name of the provider that generated the response.
-        model_name: Specific model used.
+        model_name: Specific model used (``"capability"`` when a capability
+            handled the request instead of a model).
         latency_ms: End-to-end generation latency reported by the provider.
         prompt_tokens: Tokens consumed by the prompt, if available.
         completion_tokens: Tokens generated, if available.
+        capability_name: When the response came from a capability rather than
+            a model, this holds the capability's registered name.
     """
 
     plan: Plan
@@ -90,6 +106,7 @@ class ExecutionResult(BaseModel):
     latency_ms: float | None = None
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    capability_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
